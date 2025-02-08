@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>煤价边际价格分析工具</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- <script src="https://unpkg.com/vue@next"></script> -->
+    <script src="https://unpkg.zhimg.com/vue@3.4.21"></script>
+    
+    <!-- import CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <!-- import JavaScript -->
+    <script src="https://unpkg.com/element-plus"></script>
+    <script src="https://unpkg.com/leancloud-storage@4.12.3/dist/av-min.js"></script>
+
+        </head>
+<body>
+    <header>
+        <h1>煤价边际价格分析工具</h1>
+    </header>
+    <div id="app">
+        <div class="container">
+            <el-form :model="form" label-width="auto" size="large">
+                <el-form-item label="碳交易价格">
+                    <div>
+                        <el-input style="margin-right: 510px" v-model="form.tjyjg" />
+                    </div>
+                    <el-button type="primary" style="margin-left: 10px" @click="redirectToCNEEEX">查询碳价</el-button>
+                  </el-form-item>
+                <el-form-item label="成本煤种的类型">
+                    <el-select v-model="form.cbmzlx" class="m-2" placeholder="请选择" size="large">
+                        <el-option
+                                v-for="item in form.options"
+                                :key="item.value"
+                                :label="item.label"
+                                :value="item.value"
+                        />
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="成本基准煤价" >
+                    <el-input style="margin-right: 50px" v-model="form.cbjzmj"/>
+                </el-form-item>
+                
+
+                <el-form-item label="测试煤种的类型">
+                    <el-select v-model="form.czmzlx" class="m-2" placeholder="请选择" size="large">
+                        <el-option
+                                v-for="item in form.options"
+                                :key="item.value"
+                                :label="item.label"
+                                :value="item.value"
+                        />
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="测试煤种实际煤价">
+                    <el-input style="margin-right: 50px" v-model="form.csmzsjmj" />
+                </el-form-item>
+                <el-form-item label="机组规模:">
+                    <el-select v-model="form.jzgm1" class="m-2" placeholder="请选择" size="large">
+                        <el-option
+                                v-for="item in form.jzgm"
+                                :key="item.value"
+                                :label="item.label"
+                                :value="item.value"
+                        />
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="季节:">
+                    <el-select v-model="form.jj1" class="m-2" placeholder="请选择" size="large">
+                        <el-option
+                                v-for="item in form.jj"
+                                :key="item.value"
+                                :label="item.label"
+                                :value="item.value"
+                        />
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="负荷比例:">
+                    <el-select v-model="form.fhbl1" class="m-2" placeholder="请选择" size="large">
+                        <el-option
+                                v-for="item in form.fhbl"
+                                :key="item.value"
+                                :label="item.label"
+                                :value="item.value"
+                        />
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="冷却方式:">
+                    <el-select v-model="form.lqfs1" class="m-2" placeholder="请选择" size="large">
+                        <el-option
+                                v-for="item in form.lqfs"
+                                :key="item.value"
+                                :label="item.label"
+                                :value="item.value"
+                        />
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="同意隐私协议">
+                    <el-switch v-model="form.delivery" />
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" @click="onSubmit" style="width: 500px; margin-left: 220px">计算</el-button>
+                </el-form-item>
+            </el-form>
+        </div>
+
+    </div>
+
+
+    <div class="result-field" id="resultField"></div>
+
+    <script src="script.js"></script>
+    </script>
+    <script>
+
+        /*
+        * 使用了vue、elementui和leanclound数据库
+        * 可以在线获取
+        * */
+        //初始化vue
+        const App = {
+            data() {
+                return {
+                    result: null,
+                    form:{
+                        cbjzmj: '',
+                        tjyjg: '',
+                        csmzsjmj: '',
+                        cbmzlx: '',
+                        czmzlx: '',
+                        jzgm1: '',
+                        jj1: '',
+                        fhbl1: '',
+                        lqfs1: '',
+                        options : [
+                            {
+                                value: 'AC_Average_Coal',
+                                label: '澳煤',
+                            },
+                            {
+                                value: 'AM_Average_Mongolia',
+                                label: '澳蒙',
+                            },
+                            {
+                                value: 'AO_Australia_Optimum',
+                                label: '澳优',
+                            },
+                            {
+                                value: 'DC_Average_Blend',
+                                label: '大混',
+                            },
+                            {
+                                value: 'EC_Average_Russia_Coal',
+                                label: '俄煤',
+                            },
+                            {
+                                value: 'FD12_Average_Richburn_12',
+                                label: '富动12号',
+                            },
+                            {
+                                value: 'FD24_Average_Richburn_24',
+                                label: '富动24号',
+                            },
+                            {
+                                value: 'FD31_Average_Richburn_31',
+                                label: '富动31号',
+                            },
+                            {
+                                value: 'FD52_Average_Richburn_52',
+                                label: '富动52号',
+                            },
+                            {
+                                value: 'FD83_Richburn_83',
+                                label: '富动83',
+                            },
+                            {
+                                value: 'CDC_Average_Colombia_Power_Coal',
+                                label: '哥伦比亚动力煤',
+                            },
+                            {
+                                value: 'HC_Average_Huainan_Coal',
+                                label: '淮南',
+                            },
+                            {
+                                value: 'MC_Average_Mongolia_Blend',
+                                label: '蒙混',
+                            },
+                            {
+                                value: 'SC1_Average_Shanxi_Blend_1',
+                                label: '神混1号',
+                            },
+                            {
+                                value: 'SC2_Average_Shanxi_Blend_2',
+                                label: '神混2号',
+                            },
+                            {
+                                value: 'CC2_Coal_2',
+                                label: '石炭2号',
+                            },
+                            {
+                                value: 'TY4_Tongyou_4',
+                                label: '同友4号',
+                            },
+                            {
+                                value: 'PO_Average_Purchased_Coal_1',
+                                label: '外购1',
+                            },
+                            {
+                                value: 'PT_Average_Purchased_Coal_2',
+                                label: '外购2',
+                            },
+                            {
+                                value: 'PH_Average_Purchased_Coal_3',
+                                label: '外购3',
+                            },
+                            {
+                                value: 'P5000_Purchased_Coal_5000',
+                                label: '外购5000',
+                            },
+                            {
+                                value: 'IY3_Average_Yitai_3',
+                                label: '伊泰3号',
+                            },
+                            {
+                                value: 'IY4_Average_Yitai_4',
+                                label: '伊泰4号',
+                            },
+                            {
+                                value: 'IY5_Yitai_5',
+                                label: '伊泰5号',
+                            },
+                            {
+                                value: 'IC_Indonesia_Coal',
+                                label: '印尼煤',
+                            },
+                            {
+                                value: 'UC_Average_Youhun_Coal',
+                                label: '优混',
+                            },
+                        ],
+                        jzgm:[
+                            {
+                            value: '1000MW_Ultra_Supercritical',
+                            label: '1000MW超超临界',
+                        },
+                            {
+                                value: '660MW_Ultra_Supercritical',
+                                label: '660MW超超临界',
+                            },
+                            {
+                                value: '660MW_Supercritical',
+                                label: '660MW超临界',
+                            },
+                            {
+                                value: '660MW_Subcritical',
+                                label: '660MW亚临界',
+                            },
+                            {
+                                value: '330MW_Subcritical',
+                                label: '330MW亚临界',
+                            },],
+                        jj:[
+                            {
+                                value: 'cq',
+                                label: '春/秋季',
+                            },
+                            {
+                                value: 'x',
+                                label: '夏季',
+                            },
+                            {
+                                value: 'd',
+                                label: '冬季',
+                            },
+                            {
+                                value: 'all',
+                                label: '全年',
+                            }
+                        ],
+                        fhbl:[
+                            {
+                                value: '100',
+                                label: '100负荷',
+                            },
+                            {
+                                value: '75',
+                                label: '75负荷',
+                            },
+                            {
+                                value: '50',
+                                label: '50负荷',
+                            },
+                            {
+                                value: '40',
+                                label: '40负荷',
+                            },
+                            {
+                                value: '30',
+                                label: '30负荷',
+                            },
+                        ],
+                        lqfs: [
+                            {
+                                value: 'Seawater_Cooling',
+                                label: '海水冷却',
+                            },
+                            {
+                                value: 'Recirculating_Water',
+                                label: '循环水',
+                            },
+                            {
+                                value: 'Air_Cooling',
+                                label: '空冷',
+                            }
+                        ]
+                    }
+                };
+            },
+            methods: {
+                redirectToCNEEEX: function (){
+                    // 设置要跳转到的页面 URL
+                    var newPageURL = "https://www.cneeex.com/qgtpfqjy/mrgk/2023n/"; // 将此替换为您要跳转的实际 URL
+                    // 使用 window.open() 在新窗口中打开链接
+                    window.open(newPageURL, "_blank");
+                },
+                onSubmit: function() {
+
+                    // 获取表格中填好的
+                    const cbjzmj = this.form.cbjzmj;
+                    const cjyjg = this.form.tjyjg;
+                    const fhbl = this.form.fhbl1;
+                    const jijie = this.form.jj1;
+                    const sjmj = this.form.csmzsjmj;
+                    const jzgm = this.form.jzgm1;
+                    const lqfs = this.form.lqfs1;
+                    const cbmzlx = this.form.cbmzlx;
+                    const mzlx = this.form.czmzlx;
+                    var tpf = null;
+                    var mh = null;
+                    //数据库key初始化
+                    var APP_ID = 'PCGscIMydkK6j7t1zgYlGGN0-gzGzoHsz';
+                    var APP_KEY = 'WE6YuJy1ojQBkpw4muZevh7n';
+                    AV.init({
+                        appId: APP_ID,
+                        appKey: APP_KEY,
+                        serverURLs: "https://pcgscimy.lc-cn-n1-shared.com",
+                    });
+                    //设置数据库查询，查询mtpf1表格
+                    var query = new AV.Query('mtpf1');
+                    query.equalTo("fuhebili", fhbl);
+                    query.equalTo("jijie",jijie);
+                    query.equalTo("jizuguimo",jzgm);
+                    query.equalTo("lenquefangshi",lqfs);
+                    
+                    query.equalTo("meizhong",mzlx);
+
+                    //开始查询
+                    query.find()
+                        .then((result) => {
+                            //得到返回结果，转换为json
+                            const parsedData = JSON.parse(JSON.stringify(result));
+                            //获取煤耗和碳排放
+                            mh = parsedData[0].meihao;
+                            tpf = parsedData[0].tanpaifang;
+                            tl = parsedData[0].tuoliu;
+                            return { mh, tpf, tl }; // 返回对象包含 mh,tl 和 tpf 的值
+                        })
+                        .then(({ mh, tpf, tl }) => {
+                            console.log(mh, tpf, tl); // 在这里输出 tpf 的值
+                            this.result = mh
+                            //查询蒙混的数据
+                            var query1 = new AV.Query('mtpf1');
+                            query1.equalTo("fuhebili", fhbl);
+                            query1.equalTo("jijie",jijie);
+                            query1.equalTo("jizuguimo",jzgm);
+                            query1.equalTo("lenquefangshi",lqfs);
+                            query1.equalTo("meizhong",cbmzlx);
+                            query1.find()
+                                .then((result) => {
+                                    const parsedData = JSON.parse(JSON.stringify(result));
+                                    //蒙混的煤耗和碳排放
+                                    mh1 = parsedData[0].meihao;
+                                    tpf1 = parsedData[0].tanpaifang;
+                                    tl1 = parsedData[0].tuoliu;
+                                    
+                                    //三个不含脱硫的
+                                    py = (cbjzmj*mh1 + (tpf1*cjyjg - tpf*cjyjg)) / mh
+                                    console.log(py)
+                                    gs3 = (cbjzmj * (mh1 - mh) + (tpf1*cjyjg - tpf * cjyjg)) / mh
+                                    console.log(gs3)
+                                    gs4 = (mh*sjmj + tpf*cjyjg)/ 1000000
+                                    console.log(gs4)
+                                    //三个含脱硫的计算公式
+                                    py1 = ((cbjzmj*mh1+tl1*mh1) + (tpf1 *cjyjg- tpf*cjyjg)) / mh-tl
+                                    console.log(py1)
+                                    gs31 = py1-cbjzmj
+                                    console.log(gs31)
+                                    gs41 = (mh*sjmj + tpf*cjyjg+mh*tl)/ 1000000
+                                    console.log(gs41)
+
+                                    py = py.toFixed(3);
+                                    gs3 = gs3.toFixed(3);
+                                    gs4 = gs4.toFixed(3);
+                                    py1 = py1.toFixed(3);
+                                    gs31 = gs31.toFixed(3);
+                                    gs41 = gs41.toFixed(3);
+                                    // 判断条件并设置建议消息
+                                    let adviceMessage = sjmj < py ? '<span style="color:red; font-weight:bold;">建议购买测试煤种</span>' : '<span style="color:red; font-weight:bold;">建议购买成本煤种</span>';
+                                    let adviceMessage1 = sjmj < py1 ? '<span style="color:red; font-weight:bold;">若考虑脱硫成本建议购买测试煤种</span>' : '<span style="color:red; font-weight:bold;">若考虑脱硫成本建议购买成本煤种</span>';
+                                    this.$alert(`<b>供煤和碳排放综合成本:</b><br>测试煤种的边界煤价 (Py):${py}元/t<br>边界差价 (Δ):${gs3}元/t<br>单位电力综合成本 (P):${gs4}元/kwh<br>${adviceMessage}<br><hr style="margin: 5px 0;"><b>供煤、碳排放和脱硫综合成本:</b><br>测试煤种的边界煤价（含脱硫） (Py1):${py1}元/t<br>边界差价 （含脱硫）(Δ1):${gs31}元/t<br>单位电力综合成本 （含脱硫）(P1):${gs41}元/kwh<br>${adviceMessage1}`, '决策结果', {
+                                        confirmButtonText: '确定',
+                                        dangerouslyUseHTMLString: true,
+                                        callback: action => {
+                                            
+                                            this.$message({
+                                                type: 'info',
+                                                message: `action: ${action}<br>${buyMessage}`
+                                            });
+                                        }
+                                })
+                        });
+                        });
+            }}
+        };
+        //初始化Vue
+        const app = Vue.createApp(App);
+        app.use(ElementPlus);
+        app.mount("#app");
+    </script>
+
+</body>
+</html>
